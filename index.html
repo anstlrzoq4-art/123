@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Flow • D-Day & 투두 메모장</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <!-- 내장 커스텀 스타일 (CSS) -->
+  <style>
+    /* 스크롤바 미려하게 커스터마이징 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-800 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white flex flex-col justify-between p-3 sm:p-6 lg:p-10">
+  <div class="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-between">
+    
+    <!-- 메인 기하학적 밸런스 컨테이너 -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col flex-1">
+      
+      <!-- 상단 헤더 & 실시간 메트릭 통계 -->
+      <header class="flex flex-col md:flex-row md:items-center justify-between px-6 lg:px-10 py-5 bg-white border-b border-slate-200 gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Daily Flow</h1>
+            <span class="text-xs font-semibold px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100">D-Day & Memo</span>
+          </div>
+          <p id="currentDate" class="text-sm text-slate-500 font-medium mt-0.5">날짜 로딩 중...</p>
+        </div>
+
+        <!-- 실시간 집계 지표 및 초기화 버튼 -->
+        <div class="flex items-center gap-4 sm:gap-6 flex-wrap">
+          <div class="flex items-center gap-5 sm:gap-8">
+            <div class="text-center">
+              <span class="block text-[11px] uppercase tracking-widest text-slate-400 font-bold">Total</span>
+              <span id="totalCount" class="text-xl font-bold text-slate-800">00</span>
+            </div>
+            <div class="text-center">
+              <span class="block text-[11px] uppercase tracking-widest text-slate-400 font-bold">Completed</span>
+              <span id="completedCount" class="text-xl font-bold text-emerald-600">00</span>
+            </div>
+            <div class="text-center border-l border-slate-200 pl-5 sm:pl-8">
+              <span class="block text-[11px] uppercase tracking-widest text-slate-400 font-bold">Progress</span>
+              <span id="completionPercent" class="text-xl font-bold text-indigo-600">0%</span>
+            </div>
+          </div>
+
+          <!-- 샘플 데이터 리셋 버튼 -->
+          <button type="button" onclick="resetAllData()" class="px-3.5 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-all shadow-xs cursor-pointer active:scale-95 flex items-center gap-1.5" title="샘플 데이터로 초기화">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+            <span>초기화</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- 본문 2열 분할 레이아웃 -->
+      <main class="flex flex-col lg:flex-row flex-1">
+        
+        <!-- 좌측: D-Day 할 일 목록 영역 (60%) -->
+        <section class="w-full lg:w-[60%] lg:border-r border-slate-200 flex flex-col bg-white">
+          <div class="p-6 sm:p-8 border-b border-slate-100 bg-slate-50/50">
+            <!-- 입력 폼 (텍스트 + 날짜 선택기) -->
+            <form id="todoForm" onsubmit="handleAddTodo(event)" class="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                id="todoInput"
+                placeholder="할 일 또는 목표를 입력하세요..."
+                class="flex-1 px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-white text-sm sm:text-base text-slate-800 placeholder:text-slate-400 shadow-sm"
+                autocomplete="off"
+              />
+              <div class="flex gap-2">
+                <input
+                  type="date"
+                  id="todoDueDate"
+                  title="날짜를 선택하면 남은 일수가 실시간 계산됩니다"
+                  class="px-3 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-white text-xs sm:text-sm text-slate-600 shadow-sm cursor-pointer"
+                />
+                <button
+                  type="submit"
+                  class="px-5 sm:px-6 py-2.5 sm:py-3 bg-indigo-600 text-white font-semibold text-sm rounded-lg hover:bg-indigo-700 transition-colors shadow-sm active:scale-95 shrink-0 cursor-pointer"
+                >
+                  추가
+                </button>
+              </div>
+            </form>
+
+            <!-- 상태 필터링 버튼군 -->
+            <div class="flex mt-4 gap-2 flex-wrap items-center justify-between">
+              <div class="flex gap-2">
+                <button type="button" id="filterAll" onclick="setFilter('all')" class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-800 text-white shadow-xs cursor-pointer">전체 (<span id="allCountBadge">0</span>)</button>
+                <button type="button" id="filterActive" onclick="setFilter('active')" class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer">진행 중 (<span id="activeCountBadge">0</span>)</button>
+                <button type="button" id="filterCompleted" onclick="setFilter('completed')" class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer">완료됨 (<span id="completedCountBadge">0</span>)</button>
+              </div>
+              <button type="button" id="clearCompletedBtn" onclick="clearCompleted()" class="text-xs font-medium text-slate-400 hover:text-red-600 transition-colors hidden cursor-pointer">
+                완료 항목 정리
+              </button>
+            </div>
+          </div>
+
+          <!-- 할 일 항목 동적 렌더링 컨테이너 -->
+          <div class="flex-1 overflow-y-auto p-6 sm:p-8 space-y-3 min-h-[320px] max-h-[520px]">
+            <div id="todoList" class="space-y-3"></div>
+            <div id="emptyState" class="hidden py-16 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/40">
+              <p class="text-sm font-semibold text-slate-500">등록된 항목이 없습니다.</p>
+              <p class="text-xs text-slate-400 mt-1">새로운 목표와 마감 날짜를 등록해 보세요.</p>
+            </div>
+          </div>
+
+          <!-- 하단 요약 정보 바 -->
+          <div class="px-6 sm:px-8 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-medium">
+            <span id="activeCountText">0개 작업 진행 중</span>
+            <span id="totalCountText">총 0개 항목</span>
+          </div>
+        </section>
+
+        <!-- 우측: 스크래치패드 메모장 영역 (40%) -->
+        <aside class="w-full lg:w-[40%] flex flex-col bg-white border-t lg:border-t-0 border-slate-200">
+          <div class="p-6 sm:p-8 flex items-center justify-between bg-slate-50 border-b border-slate-200">
+            <h2 class="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+              <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+              <span>Scratchpad</span>
+              <span class="text-slate-400 text-xs normal-case font-medium">(자동저장 메모장)</span>
+            </h2>
+            <div class="flex items-center gap-1.5">
+              <span id="memoStatusBadge" class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Auto-saving</span>
+              <!-- 메모 복사 버튼 -->
+              <button type="button" onclick="copyMemo()" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer" title="메모 내용 클립보드 복사">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+              </button>
+              <!-- 메모 비우기 버튼 -->
+              <button type="button" onclick="clearMemo()" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-200/60 rounded-md transition-colors cursor-pointer" title="메모 전체 비우기">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex-1 flex flex-col p-6 sm:p-8">
+            <textarea
+              id="memoInput"
+              placeholder="아이디어, 메모, 보충 설명 등을 자유롭게 적어보세요...&#10;&#10;입력하는 즉시 브라우저 로컬 저장소(localStorage)에 실시간으로 자동 저장됩니다."
+              class="w-full flex-1 min-h-[220px] lg:min-h-[380px] text-slate-600 leading-relaxed focus:outline-none resize-none bg-white text-sm sm:text-base font-medium placeholder:italic placeholder:text-slate-300"
+            ></textarea>
+          </div>
+
+          <div class="p-4 sm:p-6 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium italic">
+            <span>브라우저 로컬 저장소 자동 동기화</span>
+            <span id="memoCharCount" class="not-italic font-semibold">0자</span>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <!-- 하단 푸터 바 -->
+    <footer class="mt-4 sm:mt-6 h-auto sm:h-12 bg-slate-900 rounded-xl flex flex-col sm:flex-row items-center px-6 sm:px-10 py-3 sm:py-0 justify-between text-[11px] text-slate-400 font-medium gap-2">
+      <div>&copy; Daily Flow • Productivity Suite</div>
+      <div class="flex items-center gap-6">
+        <span>로컬 스토리지: 정상 연동</span>
+        <span class="text-emerald-400 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          동기화 활성 (Active)
+        </span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- 내장 자바스크립트 (로컬 스토리지 & D-Day 실시간 계산 엔진) -->
+  <script>
+    const TODO_STORAGE_KEY = 'dailyflow_todos_v1';
+    const MEMO_STORAGE_KEY = 'dailyflow_memo_v1';
+
+    let todos = [];
+    let currentFilter = 'all';
+
+    // 오늘 날짜 표시 초기화
+    function initDate() {
+      const now = new Date();
+      const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+      document.getElementById('currentDate').textContent = now.toLocaleDateString('ko-KR', options);
+    }
+
+    // 시간 포맷 헬퍼
+    function formatTime(timestamp) {
+      try {
+        return new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: true });
+      } catch {
+        return '';
+      }
+    }
+
+    // 미래 날짜 문자열 생성 (샘플 데이터용)
+    function getFutureDateStr(daysAhead) {
+      const d = new Date();
+      d.setDate(d.getDate() + daysAhead);
+      return d.toISOString().split('T')[0];
+    }
+
+    // 핵심 기능: D-Day 실시간 계산 함수
+    function getDDayInfo(targetDateStr) {
+      if (!targetDateStr) return null;
+      const target = new Date(targetDateStr + 'T00:00:00');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const diffTime = target.getTime() - today.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 0) {
+        return { badge: 'D-Day', sub: '오늘 마감', classes: 'bg-amber-100 text-amber-800 border-amber-200' };
+      } else if (diffDays > 0) {
+        return { badge: 'D-' + diffDays, sub: diffDays + '일 남음', classes: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+      } else {
+        const past = Math.abs(diffDays);
+        return { badge: 'D+' + past, sub: past + '일 지남', classes: 'bg-rose-50 text-rose-700 border-rose-200' };
+      }
+    }
+
+    // 로컬 스토리지 데이터 로드
+    function loadData() {
+      try {
+        const savedTodos = localStorage.getItem(TODO_STORAGE_KEY);
+        if (savedTodos) {
+          todos = JSON.parse(savedTodos);
+        } else {
+          // 초기 기본 예시 데이터
+          todos = [
+            { id: '1', text: '프로젝트 중간 점검 회의 준비', completed: false, createdAt: Date.now() - 7200000, dueDate: getFutureDateStr(0) },
+            { id: '2', text: '자격증 시험 접수 및 교재 구매', completed: false, createdAt: Date.now() - 2700000, dueDate: getFutureDateStr(3) },
+            { id: '3', text: '주간 업무 보고서 작성', completed: true, createdAt: Date.now() - 7200000, dueDate: getFutureDateStr(1) },
+            { id: '4', text: 'GitHub Pages 배포 확인하기', completed: true, createdAt: Date.now() - 10800000 }
+          ];
+          saveTodos();
+        }
+      } catch (e) {
+        console.error('LocalStorage load failed', e);
+        todos = [];
+      }
+
+      try {
+        const savedMemo = localStorage.getItem(MEMO_STORAGE_KEY);
+        if (savedMemo !== null) {
+          const memoInput = document.getElementById('memoInput');
+          memoInput.value = savedMemo;
+          updateMemoCount();
+        }
+      } catch (e) {
+        console.error('Memo load failed', e);
+      }
+
+      render();
+    }
+
+    // 로컬 스토리지 저장
+    function saveTodos() {
+      try {
+        localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos));
+      } catch (e) {
+        console.error('Save todos failed', e);
+      }
+    }
+
+    // 할 일 추가
+    function handleAddTodo(e) {
+      e.preventDefault();
+      const input = document.getElementById('todoInput');
+      const dateInput = document.getElementById('todoDueDate');
+      const text = input.value.trim();
+      if (!text) return;
+
+      todos.unshift({
+        id: Date.now().toString(),
+        text: text,
+        completed: false,
+        createdAt: Date.now(),
+        dueDate: dateInput.value || undefined
+      });
+
+      input.value = '';
+      dateInput.value = '';
+      saveTodos();
+      render();
+    }
+
+    // 완료 토글
+    function toggleTodo(id) {
+      todos = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+      saveTodos();
+      render();
+    }
+
+    // 개별 삭제
+    function deleteTodo(id) {
+      todos = todos.filter(t => t.id !== id);
+      saveTodos();
+      render();
+    }
+
+    // 완료된 항목 일괄 정리
+    function clearCompleted() {
+      todos = todos.filter(t => !t.completed);
+      saveTodos();
+      render();
+    }
+
+    // 초기화 기능 (샘플 복원)
+    function resetAllData() {
+      if (confirm('모든 할 일과 메모를 기본 예시 데이터로 초기화하시겠습니까?')) {
+        todos = [
+          { id: '1', text: '프로젝트 중간 점검 회의 준비', completed: false, createdAt: Date.now() - 7200000, dueDate: getFutureDateStr(0) },
+          { id: '2', text: '자격증 시험 접수 및 교재 구매', completed: false, createdAt: Date.now() - 2700000, dueDate: getFutureDateStr(3) },
+          { id: '3', text: '주간 업무 보고서 작성', completed: true, createdAt: Date.now() - 7200000, dueDate: getFutureDateStr(1) },
+          { id: '4', text: 'GitHub Pages 배포 확인하기', completed: true, createdAt: Date.now() - 10800000 }
+        ];
+        saveTodos();
+        const memoInput = document.getElementById('memoInput');
+        memoInput.value = '주간 주요 메모:\n- 회의 준비 자료 사전 공유하기\n- 마감 3일 전 D-Day 일정 점검\n\n중요 링크 및 아이디어:\n- GitHub Pages 배포 완료\n- 반응형 디자인 점검';
+        localStorage.setItem(MEMO_STORAGE_KEY, memoInput.value);
+        updateMemoCount();
+        render();
+      }
+    }
+
+    // 필터 전환
+    function setFilter(filter) {
+      currentFilter = filter;
+      const filters = ['all', 'active', 'completed'];
+      filters.forEach(f => {
+        const btn = document.getElementById('filter' + f.charAt(0).toUpperCase() + f.slice(1));
+        if (f === filter) {
+          btn.className = 'filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-800 text-white shadow-xs cursor-pointer';
+        } else {
+          btn.className = 'filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer';
+        }
+      });
+      render();
+    }
+
+    // 상단 통계 수치 동기화
+    function updateStats() {
+      const total = todos.length;
+      const completed = todos.filter(t => t.completed).length;
+      const active = total - completed;
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      document.getElementById('totalCount').textContent = total < 10 ? '0' + total : total;
+      document.getElementById('completedCount').textContent = completed < 10 ? '0' + completed : completed;
+      document.getElementById('completionPercent').textContent = percent + '%';
+
+      document.getElementById('allCountBadge').textContent = total;
+      document.getElementById('activeCountBadge').textContent = active;
+      document.getElementById('completedCountBadge').textContent = completed;
+
+      document.getElementById('activeCountText').textContent = active + '개 작업 진행 중';
+      document.getElementById('totalCountText').textContent = '총 ' + total + '개 항목';
+
+      const clearBtn = document.getElementById('clearCompletedBtn');
+      if (completed > 0) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+    }
+
+    // UI 동적 렌더링
+    function render() {
+      updateStats();
+
+      const list = document.getElementById('todoList');
+      const emptyState = document.getElementById('emptyState');
+      list.innerHTML = '';
+
+      let filtered = todos;
+      if (currentFilter === 'active') {
+        filtered = todos.filter(t => !t.completed);
+      } else if (currentFilter === 'completed') {
+        filtered = todos.filter(t => t.completed);
+      }
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+      }
+
+      filtered.forEach(todo => {
+        const item = document.createElement('div');
+        item.className = 'flex items-center gap-3 sm:gap-4 p-4 rounded-xl shadow-sm transition-all group ' +
+          (todo.completed ? 'border border-transparent bg-emerald-50/50 opacity-70' : 'border border-slate-100 bg-white hover:border-indigo-100');
+
+        // 원형 체크박스
+        const checkbox = document.createElement('div');
+        checkbox.className = 'w-6 h-6 rounded-full flex-shrink-0 cursor-pointer flex items-center justify-center transition-all ' +
+          (todo.completed ? 'bg-emerald-500 border-2 border-emerald-500 text-white' : 'border-2 border-slate-300 hover:border-indigo-500 bg-white');
+        checkbox.onclick = () => toggleTodo(todo.id);
+        if (todo.completed) {
+          checkbox.innerHTML = '<svg class="w-3.5 h-3.5 stroke-white" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        }
+
+        // 텍스트 & D-Day 뱃지 컨테이너
+        const textWrapper = document.createElement('div');
+        textWrapper.className = 'flex-1 min-w-0 cursor-pointer select-none';
+        textWrapper.onclick = () => toggleTodo(todo.id);
+
+        const textRow = document.createElement('div');
+        textRow.className = 'flex items-center gap-2 flex-wrap';
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'text-sm sm:text-base font-medium break-all transition-colors ' +
+          (todo.completed ? 'text-slate-500 line-through' : 'text-slate-700');
+        textSpan.textContent = todo.text;
+        textRow.appendChild(textSpan);
+
+        // D-Day 뱃지 (미완료 항목만 실시간 계산 및 표시)
+        const dday = getDDayInfo(todo.dueDate);
+        if (dday && !todo.completed) {
+          const badge = document.createElement('span');
+          badge.className = 'inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border ' + dday.classes;
+          badge.title = todo.dueDate + ' (' + dday.sub + ')';
+          badge.innerHTML = '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>' + dday.badge + '</span>';
+          textRow.appendChild(badge);
+        }
+
+        textWrapper.appendChild(textRow);
+
+        // 타임스탬프 / 완료 텍스트
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'text-xs font-bold text-slate-400 shrink-0';
+        timeSpan.textContent = todo.completed ? 'Done' : formatTime(todo.createdAt);
+
+        // 삭제 버튼
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'opacity-60 sm:opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-red-500 rounded-md transition-opacity cursor-pointer shrink-0';
+        delBtn.title = '삭제';
+        delBtn.onclick = () => deleteTodo(todo.id);
+        delBtn.innerHTML = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+
+        item.appendChild(checkbox);
+        item.appendChild(textWrapper);
+        item.appendChild(timeSpan);
+        item.appendChild(delBtn);
+        list.appendChild(item);
+      });
+    }
+
+    // 메모장 로직
+    const memoInput = document.getElementById('memoInput');
+    const memoStatus = document.getElementById('memoStatusBadge');
+    const memoCount = document.getElementById('memoCharCount');
+    let memoTimeout = null;
+
+    function updateMemoCount() {
+      memoCount.textContent = memoInput.value.length + '자';
+    }
+
+    // 메모 자동 저장 (300ms 디바운스)
+    memoInput.addEventListener('input', () => {
+      memoStatus.textContent = 'Saving...';
+      updateMemoCount();
+
+      clearTimeout(memoTimeout);
+      memoTimeout = setTimeout(() => {
+        try {
+          localStorage.setItem(MEMO_STORAGE_KEY, memoInput.value);
+          memoStatus.textContent = 'Auto-saving';
+        } catch (e) {
+          console.error('Memo save error', e);
+        }
+      }, 300);
+    });
+
+    // 메모 클립보드 복사
+    function copyMemo() {
+      const text = memoInput.value;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = memoStatus.textContent;
+        memoStatus.textContent = 'Copied!';
+        setTimeout(() => { memoStatus.textContent = orig; }, 1800);
+      });
+    }
+
+    // 메모 전체 비우기
+    function clearMemo() {
+      if (memoInput.value.trim() && confirm('메모 내용을 모두 지우시겠습니까?')) {
+        memoInput.value = '';
+        updateMemoCount();
+        try {
+          localStorage.removeItem(MEMO_STORAGE_KEY);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    // 애플리케이션 초기 구동
+    initDate();
+    loadData();
+  </script>
+</body>
+</html>
